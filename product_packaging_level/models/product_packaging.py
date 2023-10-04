@@ -30,37 +30,13 @@ class ProductPackaging(models.Model):
     )
     name_type = fields.Selection(
         string="Name Based On",
-        selection=[
-            ("by_package_level", "Package Level Name"),
-            ("by_package_type", "Package Type Name"),
-            ("user_defined", "User Defined"),
-        ],
-        default="by_package_level",
-        help=(
-            "config to set name of product packaging. Three options:"
-            "- The package level name (default)"
-            "- The package type name (if groups='stock.group_tracking_lot')"
-            "- user defined: free text value defined"
-        ),
+        related="packaging_level_id.name_type"
     )
 
     def default_packaging_level_id(self):
         return self.env["product.packaging.level"].search(
             [("is_default", "=", True)], limit=1
         )
-
-    @api.constrains("name_type")
-    def _check_packaging_name(self):
-        for packaging in self:
-            activated_packages = self.env.user.has_group("stock.group_tracking_lot")
-            if packaging.name_type == "by_package_type" and not activated_packages:
-                raise ValidationError(
-                    _(
-                        "Packaging name based on package type is only allowed"
-                        " after activating the option Packages in Inventory >"
-                        " Configuration > Settings !"
-                    )
-                )
 
     @api.constrains("packaging_level_id", "product_id")
     def _check_one_packaging_level_per_product(self):
@@ -155,24 +131,11 @@ class ProductPackaging(models.Model):
         if package_type_level_id:
             self.packaging_level_id = package_type_level_id
 
-    @api.onchange("packaging_level_id", "package_type_id", "name_type", "name")
+    @api.onchange("packaging_level_id", "package_type_id", "name")
     def _onchange_name(self):
         new_name = self.name
         if self.name_type == "by_package_level":
-            new_name = self.packaging_level_id.name
+            new_name = self.packaging_level_id.display_name
         elif self.name_type == "by_package_type":
             new_name = self.package_type_id.name
         self.name = new_name
-
-    def name_get(self):
-        result = []
-        for record in self:
-            if (
-                record.product_id
-                and record.packaging_level_id
-                and record.name_type == "by_package_level"
-            ):
-                result.append((record.id, record.packaging_level_id.display_name))
-            else:
-                result.append((record.id, record.name))
-        return result

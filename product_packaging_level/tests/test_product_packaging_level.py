@@ -57,7 +57,7 @@ class TestProductPackagingLevel(common.TransactionCase):
             {"groups_id": [(4, self.env.ref("stock.group_tracking_lot").id)]}
         )
         packaging_name = "user defined - not box - not pallet"
-        self.packaging.name_type = "user_defined"
+        self.packaging.packaging_level_id.name_type = "user_defined"
         self.packaging.name = packaging_name
         # try to change package_type_id
         self.packaging.package_type_id = self.package_type_box
@@ -70,11 +70,13 @@ class TestProductPackagingLevel(common.TransactionCase):
         self.assertEqual(self.packaging.name, packaging_name)
 
     def test_name_by_package_type_without_group_tracking_lot(self):
-
-        with self.assertRaises(
-            ValidationError, msg="Packaging name based on packgage type is only allowed"
-        ):
-            self.packaging.write({"name_type": "by_package_type"})
+        # remove Packages from Internal group
+        internal_group = self.env.ref("base.group_user")
+        group_tracking_lot = self.env.ref("stock.group_tracking_lot")
+        internal_group.implied_ids -= group_tracking_lot
+        self.env.user.groups_id -= group_tracking_lot
+        with self.assertRaises(ValidationError):
+            self.packaging.packaging_level_id.write({"name_type": "by_package_type"})
 
     def test_default_packaging_level_defined_on_package_type(self):
         self.package_type_box.packaging_level_id = self.default_level
