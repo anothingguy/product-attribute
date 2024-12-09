@@ -333,9 +333,7 @@ class AbcClassificationProfile(models.Model):
         table = self.env["abc.sale_stock.level.history"]._table
         columns = sale_stock_data._get_col_names()
         self.env.cr.copy_from(vals, table, columns=columns, sep=";")
-        self.env["abc.classification.product.level"].invalidate_cache(
-            ["sale_stock_level_history_ids"]
-        )
+        self.env.invalidate_all()
 
 
 class SaleStockData(object):
